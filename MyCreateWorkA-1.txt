@@ -1,0 +1,242 @@
+Sub MyCreateWordA()
+
+    ' 设置变量
+    Dim ws As Worksheet
+    Dim wsComments As Worksheet
+    Dim wsCalc As Worksheet
+
+    ' 如果您使用多个sheets
+    Set ws = Worksheets("Sheet")
+
+    Dim objword As Object
+    Dim objDoc As Object
+    Dim tally As Integer
+
+    tally = 2
+
+    Dim rw As Range
+
+    Dim commentText As String
+    Dim explanationText As String
+
+    Dim header_first As Boolean
+
+    Dim text As String
+
+    header_first = True
+
+    For Each rw In ws.UsedRange.Rows
+        ' 跳过标题行
+        If header_first = True Then
+            header_first = False
+
+        Else
+
+            Set objword = GetObject(, "Word.Application")
+
+            If objword Is Nothing Then
+                Set objword = CreateObject("Word.Application")
+            End If
+
+            On Error GoTo 0
+
+            Set objDoc = objword.Documents.Add("G:\Excel-to-Word-VBA\学员互访记录台账模板.dotm")
+
+            With objDoc
+                .Bookmarks("Shift").Range.text = ws.Range("E" & rw.Row).Value
+                .Bookmarks("InspectionTime").Range.text = Format(ws.Range("F" & rw.Row).Value, "yyyy-mm-dd")
+                .Bookmarks("Inspector").Range.text = ws.Range("G" & rw.Row).Value
+                .Bookmarks("InspectorUnit").Range.text = ws.Range("H" & rw.Row).Value
+                .Bookmarks("Inspected").Range.text = ws.Range("I" & rw.Row).Value
+                .Bookmarks("InspectedUnit").Range.text = ws.Range("J" & rw.Row).Value
+                .Bookmarks("Location").Range.text = ws.Range("K" & rw.Row).Value
+                .Bookmarks("Purpose").Range.text = ws.Range("L" & rw.Row).Value
+                .Bookmarks("Content").Range.text = ws.Range("M" & rw.Row).Value
+                .Bookmarks("Reward").Range.text = ws.Range("N" & rw.Row).Value
+                .Bookmarks("Result").Range.text = ws.Range("O" & rw.Row).Value
+                .Bookmarks("Suggestion").Range.text = ws.Range("P" & rw.Row).Value
+
+                ' 被考察人签字
+                Dim foundPicture As Boolean
+                foundPicture = False
+                For Each pic In ws.Shapes
+                    If Not foundPicture And Intersect(pic.TopLeftCell, ws.Range("V" & rw.Row)) Is Nothing Then
+                        ' 图片不在目标单元格范围内
+                    ElseIf Not foundPicture Then
+                        ' 找到图片
+                        foundPicture = True
+                        ' 将Excel中的图片复制到剪贴板
+                        pic.Copy
+
+                        ' 在Word文档的书签位置插入图片
+                        With objDoc.Bookmarks("InspectedSign").Range
+                            .Collapse Direction:=wdCollapseStart ' 收缩范围到开始位置
+                            .PasteSpecial Link:=False ' 默认粘贴类型，通常会自动识别图片
+                        End With
+
+                        Application.CutCopyMode = False ' 清除剪贴板模式，避免影响后续操作
+
+                        Exit For ' 找到图片后退出循环
+                    End If
+                Next pic
+                objDoc.Bookmarks("InspectedSign").Range.Text = ""
+
+                ' 考察人签字
+                Dim foundPicture2 As Boolean
+                foundPicture2 = False
+                For Each pic In ws.Shapes
+                    If Not foundPicture2 And Intersect(pic.TopLeftCell, ws.Range("W" & rw.Row)) Is Nothing Then
+                        ' 图片不在目标单元格范围内
+                    ElseIf Not foundPicture2 Then
+                        ' 找到图片
+                        foundPicture2 = True
+                        ' 将Excel中的图片复制到剪贴板
+                        pic.Copy
+                        ' 在Word文档的书签位置插入图片
+                        With objDoc.Bookmarks("InspectorSign").Range
+                            .Collapse Direction:=wdCollapseStart ' 收缩范围到开始位置
+                            .PasteSpecial Link:=False ' 默认粘贴类型，通常会自动识别图片
+                        End With
+                        Application.CutCopyMode = False ' 清除剪贴板模式，避免影响后续操作
+                        Exit For ' 找到图片后退出循环
+                    End If
+                Next pic
+                ' 若没有找到图片，则可以添加一个提示或者默认处理方式
+                objDoc.Bookmarks("InspectorSign").Range.Text = ""
+
+                ' 第一张互访图片
+                Dim foundPicture3 As Boolean
+                foundPicture3 = False
+                For Each pic In ws.Shapes
+                    If Not foundPicture3 And Intersect(pic.TopLeftCell, ws.Range("Q" & rw.Row)) Is Nothing Then
+                        ' 图片不在目标单元格范围内
+                    ElseIf Not foundPicture3 Then
+                        ' 找到图片
+                        foundPicture3 = True
+                        ' 将Excel中的图片复制到剪贴板
+                        pic.Copy
+                        ' 在Word文档的书签位置插入图片
+                        With objDoc.Bookmarks("MutualAccess1").Range
+                            .Collapse Direction:=wdCollapseStart ' 收缩范围到开始位置
+                            .PasteSpecial Link:=False ' 默认粘贴类型，通常会自动识别图片
+                        End With
+                        Application.CutCopyMode = False ' 清除剪贴板模式，避免影响后续操作
+                        Exit For ' 找到图片后退出循环
+                    End If
+                Next pic
+                objDoc.Bookmarks("MutualAccess1").Range.Text = ""
+
+                ' 第二张互访图片
+                Dim foundPicture4 As Boolean
+                foundPicture4 = False
+                For Each pic In ws.Shapes
+                    If Not foundPicture4 And Intersect(pic.TopLeftCell, ws.Range("R" & rw.Row)) Is Nothing Then
+                        ' 图片不在目标单元格范围内
+                    ElseIf Not foundPicture4 Then
+                        ' 找到图片
+                        foundPicture4 = True
+                        ' 将Excel中的图片复制到剪贴板
+                        pic.Copy
+
+                        ' 在Word文档的书签位置插入图片
+                        With objDoc.Bookmarks("MutualAccess2").Range
+                            .Collapse Direction:=wdCollapseStart ' 收缩范围到开始位置
+                            .PasteSpecial Link:=False ' 默认粘贴类型，通常会自动识别图片
+                        End With
+                        Application.CutCopyMode = False ' 清除剪贴板模式，避免影响后续操作
+
+                        Exit For ' 找到图片后退出循环
+                    End If
+                Next pic
+                ' 若没有找到图片，则可以添加一个提示或者默认处理方式
+                objDoc.Bookmarks("MutualAccess2").Range.Text = ""
+
+                ' 第三张互访图片
+                Dim foundPicture5 As Boolean
+                foundPicture5 = False
+                For Each pic In ws.Shapes
+                    If Not foundPicture5 And Intersect(pic.TopLeftCell, ws.Range("S" & rw.Row)) Is Nothing Then
+                        ' 图片不在目标单元格范围内
+                    ElseIf Not foundPicture5 Then
+                        ' 找到图片
+                        foundPicture5 = True
+                        pic.Copy
+
+                        ' 在Word文档的书签位置插入图片
+                        With objDoc.Bookmarks("MutualAccess3").Range
+                            .Collapse Direction:=wdCollapseStart ' 收缩范围到开始位置
+                            .PasteSpecial Link:=False ' 默认粘贴类型，通常会自动识别图片
+                        End With
+
+                        Application.CutCopyMode = False ' 清除剪贴板模式，避免影响后续操作
+
+                        Exit For ' 找到图片后退出循环
+                    End If
+                Next pic
+                objDoc.Bookmarks("MutualAccess3").Range.Text = ""
+
+                ' 第五张互访图片
+                Dim foundPicture6 As Boolean
+                foundPicture6 = False
+                For Each pic In ws.Shapes
+                    If Not foundPicture6 And Intersect(pic.TopLeftCell, ws.Range("T" & rw.Row)) Is Nothing Then
+                        ' 图片不在目标单元格范围内
+                    ElseIf Not foundPicture6 Then
+                        ' 找到图片
+                        foundPicture6 = True
+                        pic.Copy
+
+                        ' 在Word文档的书签位置插入图片
+                        With objDoc.Bookmarks("MutualAccess4").Range
+                            .Collapse Direction:=wdCollapseStart ' 收缩范围到开始位置
+                            .PasteSpecial Link:=False ' 默认粘贴类型，通常会自动识别图片
+                        End With
+
+                        Application.CutCopyMode = False ' 清除剪贴板模式，避免影响后续操作
+
+                        Exit For ' 找到图片后退出循环
+                    End If
+                Next pic
+                objDoc.Bookmarks("MutualAccess4").Range.Text = ""
+
+            End With
+
+
+            objword.Visible = False
+            objword.DisplayAlerts = 0
+
+            ' 删除名字中的特殊字符
+            Static SpecialCharacters As String
+            Dim newString As String
+            Dim numberId As String
+            Dim province As String
+            Dim studentName As String
+            Dim char As Variant
+
+            SpecialCharacters = "!,@,#,$,%,^,&,*,(,),{,[,],},?,/"
+            newString = ws.Range("G" & rw.Row).Value
+            numberId = ws.Range("B" & rw.Row).Value
+
+            For Each char In Split(SpecialCharacters, ",")
+                newString = Replace(newString, char, " ")
+            Next
+
+            ' 学员所在省-学员名称-导师名—学员ID
+              objDoc.SaveAs ("G:\Excel-to-Word-VBA\Reports\Reports\" & newString & "-" & numberId & ".docx")
+
+            Set objDoc = Nothing
+            ' objword.Quits
+            objword.ActiveDocument.Close SaveChanges:=wdDoNotSaveChanges
+            ' objword.Application.Exit
+            Set objword = Nothing
+
+            tally = tally + 1
+
+        End If
+
+    Next rw
+
+
+    MsgBox "Success"
+
+End Sub
