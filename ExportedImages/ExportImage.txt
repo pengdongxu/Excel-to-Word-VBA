@@ -1,0 +1,45 @@
+Sub ExportedImages()
+    Dim sh As Worksheet
+    Dim pic As Object
+    Dim fileName As String
+    Dim topLeftCell As Range
+    Dim exportDir As String
+
+    ' 设置导出目录
+    exportDir = "/Users/pengdx/Pengpdx/VBA-DEMO/ExportedImages"
+
+    ' 如果目录不存在，则创建
+    If Dir(exportDir, vbDirectory) = "" Then
+        MkDir exportDir
+    End If
+
+    Set sh = ActiveSheet
+
+    ' 遍历工作表中的所有图片对象
+    For Each pic In sh.Pictures
+        ' 获取图片左上角所在的单元格
+        Set topLeftCell = pic.TopLeftCell
+        fileName = exportDir & topLeftCell.Address(RowAbsolute:=False, ColumnAbsolute:=False) & ".png"
+
+        ' 将图片导出为PNG文件
+        pic.Copy
+        With sh.ChartObjects.Add(0, 0, pic.Width, pic.Height).Chart
+            .Parent.Select
+            .Paste
+            .Export fileName, "PNG"
+            .Parent.Delete
+        End With
+    Next pic
+
+    ' 遍历工作表中的所有图表对象
+    For Each pic In sh.ChartObjects
+        ' 获取图表左上角所在的单元格
+        Set topLeftCell = pic.TopLeftCell
+        fileName = exportDir & topLeftCell.Address(RowAbsolute:=False, ColumnAbsolute:=False) & ".png"
+
+        ' 将图表导出为PNG文件
+        pic.Chart.Export fileName, "PNG"
+    Next pic
+
+    MsgBox "所有图片和图表已导出完成！"
+End Sub

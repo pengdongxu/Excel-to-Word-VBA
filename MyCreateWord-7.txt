@@ -1,0 +1,129 @@
+Sub MyCreateWord()
+
+    ' 常量声明
+    ' Const SHEET_NAME As String = "Sheet"
+    ' Const TEMPLATE_PATH As String = "G:\Excel-to-Word-VBA\导师走访模板.dotm"
+    ' Const REPORTS_PATH As String = "G:\Excel-to-Word-VBA\Reports\"
+
+    Const SHEET_NAME As String = "总表"
+    Const TEMPLATE_PATH As String = "/Users/pengdx/Desktop/VBA-DEMO/导师走访模板.dotm"
+    Const REPORTS_PATH As String = "/Users/pengdx/Desktop/VBA-DEMO/Reports/"
+    Const SPECIAL_CHARACTERS As String = "!,@,#,$,%,^,&,*,(,),{,[,],},?,/"
+
+    ' 设置变量
+    Dim ws As Worksheet
+    Dim objword As Object
+    Dim objDoc As Object
+    Dim tally As Integer
+    Dim rw As Range
+    Dim header_first As Boolean
+
+    tally = 2
+    header_first = True
+
+    ' 设置工作表
+    Set ws = Worksheets(SHEET_NAME)
+
+    ' 获取或创建Word应用程序实例
+    On Error Resume Next
+    Set objword = GetObject(, "Word.Application")
+    If objword Is Nothing Then
+        Set objword = CreateObject("Word.Application")
+    End If
+    On Error GoTo 0
+
+    For Each rw In ws.UsedRange.Rows
+        ' 跳过标题行
+        If header_first Then
+            header_first = False
+        Else
+            ' 创建新文档
+            Set objDoc = objword.Documents.Add(TEMPLATE_PATH)
+
+            ' 填充书签
+            FillBookmarks objDoc, rw, ws
+
+            ' 处理图片
+            HandlePictures objDoc, rw, ws
+
+            ' 删除名字中的特殊字符
+            Dim newString As String
+            Dim numberId As String
+            newString = ReplaceSpecialChars(ws.Range("G" & rw.Row).Value, SPECIAL_CHARACTERS)
+            numberId = ws.Range("B" & rw.Row).Value
+
+            ' 保存文档
+            objDoc.SaveAs REPORTS_PATH & newString & "-" & numberId & ".docx"
+
+            ' 关闭文档
+            objDoc.Close SaveChanges:=wdDoNotSaveChanges
+            Set objDoc = Nothing
+
+            tally = tally + 1
+        End If
+    Next rw
+
+    ' 关闭Word应用程序
+    objword.Quit
+    Set objword = Nothing
+
+    MsgBox "Success"
+End Sub
+
+Sub FillBookmarks(doc As Object, rw As Range, ws As Worksheet)
+    With doc
+        .Bookmarks("N").Range.Text = ws.Range("B" & rw.Row).Value
+        .Bookmarks("Shift").Range.Text = ws.Range("E" & rw.Row).Value
+        .Bookmarks("InspectionTime").Range.Text = Format(ws.Range("F" & rw.Row).Value, "yyyy-mm-dd")
+        .Bookmarks("Inspector").Range.Text = ws.Range("G" & rw.Row).Value
+        .Bookmarks("InspectorUnit").Range.Text = ws.Range("H" & rw.Row).Value
+        .Bookmarks("Inspected").Range.Text = ws.Range("I" & rw.Row).Value
+        .Bookmarks("InspectedUnit").Range.Text = ws.Range("J" & rw.Row).Value
+        .Bookmarks("Location").Range.Text = ws.Range("K" & rw.Row).Value
+        .Bookmarks("Purpose").Range.Text = ws.Range("L" & rw.Row).Value
+        .Bookmarks("Content").Range.Text = ws.Range("M" & rw.Row).Value
+        .Bookmarks("Reward").Range.Text = ws.Range("N" & rw.Row).Value
+        .Bookmarks("Result").Range.Text = ws.Range("O" & rw.Row).Value
+        .Bookmarks("Suggestion").Range.Text = ws.Range("P" & rw.Row).Value
+    End With
+End Sub
+
+Sub HandlePictures(doc As Object, rw As Range, ws As Worksheet)
+    InsertPicture doc, ws, rw, "V", "InspectedSign"
+    InsertPicture doc, ws, rw, "W", "InspectorSign"
+    InsertPicture doc, ws, rw, "Q", "MutualAccess1"
+    InsertPicture doc, ws, rw, "R", "MutualAccess2"
+    InsertPicture doc, ws, rw, "S", "MutualAccess3"
+    InsertPicture doc, ws, rw, "T", "MutualAccess4"
+End Sub
+
+Sub InsertPicture(doc As Object, ws As Worksheet, rw As Range, col As String, bookmark As String)
+    Dim foundPicture As Boolean
+    foundPicture = False
+
+    For Each pic In ws.Shapes
+        If Not foundPicture And Intersect(pic.TopLeftCell, ws.Range(col & rw.Row)) Is Nothing Then
+        ElseIf Not foundPicture Then
+            foundPicture = True
+            pic.Copy
+            With doc.Bookmarks(bookmark).Range
+                .Collapse Direction:=wdCollapseEnd
+                .PasteSpecial Link:=False
+            End With
+            Application.CutCopyMode = False
+            Exit For
+        End If
+    Next pic
+
+    If Not foundPicture Then
+        doc.Bookmarks(bookmark).Range.Text = ""
+    End If
+End Sub
+
+Function ReplaceSpecialChars(str As String, chars As String) As String
+    Dim char As Variant
+    For Each char In Split(chars, ",")
+        str = Replace(str, char, " ")
+    Next
+    ReplaceSpecialChars = str
+End Function
