@@ -1,0 +1,241 @@
+Option Explicit
+
+Const wdDoNotSaveChanges As Integer = 0
+
+Sub ExportedImages()
+    Dim sh As Worksheet
+    Dim pic As Object
+    Dim fileName As String
+    Dim topLeftCell As Range
+    Dim exportDir As String
+
+    exportDir = "G:\Excel-to-Word-VBA-ynxyhf\ExportedImages\"
+
+    CreateDirectoryIfNotExists exportDir
+
+    Set sh = ActiveSheet
+
+    ' 遍历工作表中的所有图片对象
+    For Each pic In sh.Pictures
+        ' 获取图片左上角所在的单元格
+        Set topLeftCell = pic.topLeftCell
+        fileName = exportDir & topLeftCell.Address(RowAbsolute:=False, ColumnAbsolute:=False) & ".png"
+
+        ' 将图片导出为PNG文件
+        On Error Resume Next
+        If Dir(fileName) <> "" Then Kill fileName ' 如果文件已存在，删除它
+        On Error GoTo 0
+
+        pic.Copy
+
+        ' 使用DoEvents来确保剪贴板操作成功
+        DoEvents
+
+        Dim chartObj As ChartObject
+        On Error Resume Next
+        Set chartObj = sh.ChartObjects.Add(0, 0, pic.Width, pic.Height)
+        If Err.Number <> 0 Then
+            Debug.Print "Error adding chart object: " & Err.Description
+            Err.Clear
+            GoTo NextPic
+        End If
+        On Error GoTo 0
+
+        On Error Resume Next
+        chartObj.Activate
+        chartObj.Chart.Paste
+        If Err.Number <> 0 Then
+            Debug.Print "Error pasting picture: " & Err.Description
+            Err.Clear
+            chartObj.Delete
+            GoTo NextPic
+        End If
+        On Error GoTo 0
+
+        On Error Resume Next
+        chartObj.Chart.Export fileName, "PNG"
+        If Err.Number <> 0 Then
+            Debug.Print "Error exporting chart: " & Err.Description
+            Err.Clear
+            chartObj.Delete
+            GoTo NextPic
+        End If
+        On Error GoTo 0
+
+        chartObj.Delete
+
+NextPic:
+        On Error GoTo 0
+    Next pic
+
+    ' MsgBox "所有图片已导出完成！"
+End Sub
+
+Sub CreateWord()
+    ' 常量声明
+    Const SHEET_NAME As String = "工作表1"
+    Const TEMPLATE_PATH As String = "G:\Excel-to-Word-VBA-ynxyhf\学员互访台账模板.dotm"
+    Const REPORTS_PATH As String = "G:\Excel-to-Word-VBA-ynxyhf\Reports\"
+    Const SPECIAL_CHARACTERS As String = "!,@,#,$,%,^,&,*,(,),{,[,],},?,/"
+    Const EXPORT_DIR = "G:\Excel-to-Word-VBA-ynxyhf\ExportedImages"
+
+    ' 设置变量
+    Dim ws As Worksheet
+    Dim objword As Object
+    Dim objDoc As Object
+    Dim tally As Integer
+    Dim rw As Range
+    Dim header_first As Boolean
+
+    tally = 0
+    header_first = True
+
+    ' 设置工作表
+    Set ws = Worksheets(SHEET_NAME)
+
+    ' 检查A1单元格是否为空
+    If IsEmpty(ws.Range("A1").Value) Then
+        MsgBox "A1单元格为空，请填写必要的信息。"
+        Exit Sub
+    End If
+
+    ' 导出图片
+    ExportedImages
+
+    ' 获取或创建Word应用程序实例
+    On Error Resume Next
+    Set objword = GetObject(, "Word.Application")
+    If objword Is Nothing Then
+        Set objword = CreateObject("Word.Application")
+    End If
+    On Error GoTo 0
+
+    For Each rw In ws.UsedRange.Rows
+        ' 跳过标题行
+        If header_first Then
+            header_first = False
+        Else
+            ' 创建新文档
+            Set objDoc = objword.Documents.Add(TEMPLATE_PATH)
+
+            ' 填充书签
+            FillBookmarks objDoc, rw, ws
+
+            ' 处理图片
+            HandlePictures objDoc, rw, ws
+
+            ' 删除名字中的特殊字符
+            Dim studentName As String
+            Dim studentNumber As String
+            Dim shift As String
+            Dim teacher As String
+            studentName = ReplaceSpecialChars(ws.Range("G" & rw.Row).Value, SPECIAL_CHARACTERS)
+            studentNumber = ws.Range("C" & rw.Row).Value
+            shift = ws.Range("D" & rw.Row).Value
+            teacher = ws.Range("B" & rw.Row).Value
+
+            ' 获取当前时间戳
+            Dim timeStamp As String
+            timeStamp = Format(Now, "yymmddhhnnss")
+
+            ' 保存文档
+            objDoc.SaveAs REPORTS_PATH & studentNumber & "-" & studentName & "-" & shift & "-" & teacher & "-" & timeStamp & ".docx"
+
+            ' 关闭文档
+            objDoc.Close SaveChanges:=wdDoNotSaveChanges
+            Set objDoc = Nothing
+
+            ' 增加计数
+            tally = tally + 1
+        End If
+    Next rw
+
+    ' 关闭Word应用程序
+    objword.Quit
+    Set objword = Nothing
+
+    ' 删除导出的图片目录
+    DeleteDirectory EXPORT_DIR
+
+    ' 显示成功消息和导出的文档数量
+    MsgBox "Success! 导出的文档数量: " & tally
+End Sub
+
+Sub FillBookmarks(doc As Object, rw As Range, ws As Worksheet)
+    With doc
+        .Bookmarks("N").Range.Text = ws.Range("C" & rw.Row).Value
+        .Bookmarks("Shift").Range.Text = ws.Range("D" & rw.Row).Value
+        .Bookmarks("InspectionTime").Range.Text = Format(ws.Range("A" & rw.Row).Value, "yyyy-mm-dd")
+        .Bookmarks("Inspector").Range.Text = ws.Range("B" & rw.Row).Value
+        .Bookmarks("InspectorUnit").Range.Text = ws.Range("E" & rw.Row).Value & "," & ws.Range("F" & rw.Row).Value
+        .Bookmarks("Inspected").Range.Text = ws.Range("G" & rw.Row).Value
+        .Bookmarks("InspectedUnit").Range.Text = ws.Range("H" & rw.Row).Value
+        .Bookmarks("Location").Range.Text = ws.Range("I" & rw.Row).Value
+        .Bookmarks("Purpose").Range.Text = ws.Range("J" & rw.Row).Value
+        .Bookmarks("Content").Range.Text = ws.Range("K" & rw.Row).Value
+        .Bookmarks("Reward").Range.Text = ws.Range("L" & rw.Row).Value
+        .Bookmarks("Result").Range.Text = ws.Range("M" & rw.Row).Value
+        .Bookmarks("Suggestion").Range.Text = ws.Range("N" & rw.Row).Value
+    End With
+End Sub
+
+Sub HandlePictures(doc As Object, rw As Range, ws As Worksheet)
+    InsertPicture doc, ws, rw, "O", "InspectedSign"
+    InsertPicture doc, ws, rw, "P", "InspectorSign"
+    InsertPicture doc, ws, rw, "Q", "MutualAccess1"
+    InsertPicture doc, ws, rw, "R", "MutualAccess2"
+    InsertPicture doc, ws, rw, "S", "MutualAccess3"
+    InsertPicture doc, ws, rw, "T", "MutualAccess4"
+    InsertPicture doc, ws, rw, "U", "MutualAccess5"
+End Sub
+
+Sub InsertPicture(doc As Object, ws As Worksheet, rw As Range, col As String, bookmark As String)
+    Dim exportDir As String
+    Dim fileName As String
+
+    exportDir = "G:\Excel-to-Word-VBA-ynxyhf\ExportedImages\"
+    fileName = exportDir & col & rw.Row & ".png"
+
+    On Error Resume Next
+    If Dir(fileName) <> "" Then
+        If doc.Bookmarks.Exists(bookmark) Then
+            doc.Bookmarks(bookmark).Range.InlineShapes.AddPicture fileName
+        Else
+            Debug.Print "Bookmark " & bookmark & " does not exist."
+        End If
+    Else
+        Debug.Print "File " & fileName & " does not exist."
+        If doc.Bookmarks.Exists(bookmark) Then
+            doc.Bookmarks(bookmark).Range.Text = ""
+        End If
+    End If
+    If Err.Number <> 0 Then
+        Debug.Print "Error inserting picture: " & Err.Description
+    End If
+    On Error GoTo 0
+End Sub
+
+
+Function ReplaceSpecialChars(str As String, chars As String) As String
+    Dim char As Variant
+    For Each char In Split(chars, ",")
+        str = Replace(str, char, " ")
+    Next
+    ReplaceSpecialChars = str
+End Function
+
+
+Sub CreateDirectoryIfNotExists(dirPath As String)
+    If Dir(dirPath, vbDirectory) = "" Then
+        MkDir dirPath
+    End If
+End Sub
+
+Sub DeleteDirectory(dirPath As String)
+    Dim fileSystem As Object
+    Set fileSystem = CreateObject("Scripting.FileSystemObject")
+
+    If fileSystem.FolderExists(dirPath) Then
+        fileSystem.DeleteFolder dirPath, True
+    End If
+End Sub
