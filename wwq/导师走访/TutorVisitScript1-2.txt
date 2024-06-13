@@ -1,0 +1,141 @@
+Sub MyCreateWordA()
+    ' 常量声明
+    Const SHEET_NAME As String = "Sheet1"
+    Const TEMPLATE_PATH As String = "G:\Excel-to-Word-VBA\导师走访模板.dotm"
+    Const REPORTS_PATH As String = "G:\Excel-to-Word-VBA\Reports\"
+    Const SPECIAL_CHARACTERS As String = "!,@,#,$,%,^,&,*,(,),{,[,],},?,/"
+
+    ' 设置变量
+    Dim ws As Worksheet
+    Dim objword As Object
+    Dim objDoc As Object
+    Dim tally As Integer
+    Dim rw As Range
+    Dim header_first As Boolean
+
+    tally = 2
+    header_first = True
+
+    ' 设置工作表
+    Set ws = Worksheets(SHEET_NAME)
+
+    ' 获取或创建Word应用程序实例
+    On Error Resume Next
+    Set objword = GetObject(, "Word.Application")
+    If objword Is Nothing Then
+        Set objword = CreateObject("Word.Application")
+    End If
+    On Error GoTo 0
+
+    For Each rw In ws.UsedRange.Rows
+        ' 跳过标题行
+        If header_first Then
+            header_first = False
+        Else
+            ' 创建新文档
+            Set objDoc = objword.Documents.Add(TEMPLATE_PATH)
+
+            ' 填充书签
+            FillBookmarks objDoc, rw, ws
+
+            ' 处理图片
+            HandlePictures objDoc, rw, ws
+
+            ' 删除名字中的特殊字符
+            Dim newString As String
+            Dim studentNumber As String
+            Dim shift As String
+            Dim teacher As String
+
+            newString = ReplaceSpecialChars(ws.Range("A" & rw.Row).Value, SPECIAL_CHARACTERS)
+            studentNumber = ws.Range("B" & rw.Row).Value
+            shift = ws.Range("C" & rw.Row).Value
+            teacher = ws.Range("E" & rw.Row).Value
+
+            ' 获取当前时间戳
+            Dim timeStamp As String
+            timeStamp = Format(Now, "yymmddhhnnss")
+
+            ' 保存文档
+            objDoc.SaveAs REPORTS_PATH & studentNumber & "-" & newString & "-" & shift & "-" & teacher & "-" & timeStamp & ".docx"
+
+            ' 关闭文档
+            objDoc.Close SaveChanges:=wdDoNotSaveChanges
+            Set objDoc = Nothing
+
+            tally = tally + 1
+        End If
+    Next rw
+
+    ' 关闭Word应用程序
+    objword.Quit
+    Set objword = Nothing
+
+    MsgBox "Success"
+End Sub
+
+Sub FillBookmarks(doc As Object, rw As Range, ws As Worksheet)
+    With doc
+        .Bookmarks("student").Range.Text = ws.Range("A" & rw.Row).Value
+        .Bookmarks("number").Range.Text = ws.Range("B" & rw.Row).Value
+        .Bookmarks("shift").Range.Text = ws.Range("C" & rw.Row).Value
+        .Bookmarks("studentInfo").Range.Text = ws.Range("D" & rw.Row).Value
+        .Bookmarks("teacher").Range.Text = ws.Range("E" & rw.Row).Value
+        .Bookmarks("teacherInfo").Range.Text = ws.Range("G" & rw.Row).Value
+        .Bookmarks("guideTime").Range.Text = ws.Range("H" & rw.Row).Value
+        .Bookmarks("guideType").Range.Text = ws.Range("I" & rw.Row).Value
+        .Bookmarks("content").Range.Text = ws.Range("K" & rw.Row).Value
+        .Bookmarks("result").Range.Text = ws.Range("L" & rw.Row).Value
+    End With
+End Sub
+
+Sub HandlePictures(doc As Object, rw As Range, ws As Worksheet)
+    InsertPicture doc, ws, rw, "M", "studentSign"
+    InsertPicture doc, ws, rw, "N", "image1"
+    InsertPicture doc, ws, rw, "O", "image2"
+    InsertPicture doc, ws, rw, "P", "image3"
+    InsertPicture doc, ws, rw, "Q", "image4"
+End Sub
+
+Sub InsertPicture(doc As Object, ws As Worksheet, rw As Range, col As String, bookmark As String)
+    Dim foundPicture As Boolean
+    foundPicture = False
+    Dim shape As Shape
+    Dim picPath As String
+
+    For Each shape In ws.Shapes
+        If Not foundPicture And Intersect(shape.TopLeftCell, ws.Range(col & rw.Row)) Is Nothing Then
+        ElseIf Not foundPicture Then
+            foundPicture = True
+
+            ' 保存图片到临时路径
+            picPath = Environ("TEMP") & "\temp_image_" & shape.Name & ".png"
+            shape.CopyPicture
+            With CreateObject("Word.Application").Documents.Add
+                .Range.Paste
+                .SaveAs picPath, 17 ' 保存为PNG格式
+                .Close False
+            End With
+
+            ' 插入图片
+            doc.Bookmarks(bookmark).Range.InlineShapes.AddPicture FileName:=picPath, LinkToFile:=False, SaveWithDocument:=True
+
+            ' 删除临时图片
+            Kill picPath
+
+            Exit For
+        End If
+    Next shape
+
+    If Not foundPicture Then
+        doc.Bookmarks(bookmark).Range.Text = ""
+    End If
+End Sub
+
+Function ReplaceSpecialChars(str As String, chars As String) As String
+    Dim char As Variant
+    For Each char In Split(chars, ",")
+        str = Replace(str, char, " ")
+    Next
+    ReplaceSpecialChars = str
+End Function
