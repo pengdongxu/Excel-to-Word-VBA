@@ -71,7 +71,7 @@ NextPic:
         On Error GoTo 0
     Next pic
 
-    MsgBox "所有图片已导出完成！"
+    ' MsgBox "所有图片已导出完成！"
 End Sub
 
 Sub CreateWord()
@@ -90,7 +90,7 @@ Sub CreateWord()
     Dim rw As Range
     Dim header_first As Boolean
 
-    tally = 2
+    tally = 0
     header_first = True
 
     ' 设置工作表
@@ -156,9 +156,11 @@ Sub CreateWord()
     objword.Quit
     Set objword = Nothing
 
+    ' 删除导出目录
     DeleteDirectory EXPORT_DIR
 
-    MsgBox "Success"
+    ' 打印生成的Word文档数量
+    MsgBox "Success! " & tally & " 已生成word文档。"
 End Sub
 
 Sub FillBookmarks(doc As Object, rw As Range, ws As Worksheet)
